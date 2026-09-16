@@ -1,0 +1,34 @@
+# Dependencies and builds
+node_modules/
+dist/
+target/
+coverage/
+*.log
+# Editors and operating systems
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+.DS_Store
+Thumbs.db
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+application-local.properties
+application-local.yml
+application-local.yaml
+secrets/
+*secret*
+*password*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+# Local verification/tool caches
+.tools/
+work/
+

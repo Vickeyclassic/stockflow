@@ -1,0 +1,64 @@
+const assert = require('node:assert/strict');
+const base = process.env.API_BASE_URL || 'http://localhost:8081';
+// Run only against an isolated test database; creates and removes API-* fixtures.
+let checks = 0;
+async function request(method, url, body, status = 200) {
+  const response = await fetch(base + url, {method, headers:{'Content-Type':'application/json', Origin:'http://localhost:5174'}, body: body === undefined ? undefined : JSON.stringify(body)});
+  const text = await response.text();
+  assert.equal(response.status, status, `${method} ${url}: ${text}`);
+  assert.equal(response.headers.get('access-control-allow-origin'), 'http://localhost:5174');
+  checks++;
+  return text ? JSON.parse(text) : null;
+}
+(async()=>{
+  await request('GET','/api/health');
+  const c = await request('POST','/api/categories',{name:'API Hardware'},201);
+  const s = await request('POST','/api/suppliers',{name:'API Supplier',email:'test@supplier.example'},201);
+  await request('GET',`/api/categories/${c.id}`);
+  await request('PUT',`/api/categories/${c.id}`,{name:'API Hardware',description:'Updated via API'});
+  await request('GET',`/api/suppliers/${s.id}`);
+  await request('PUT',`/api/suppliers/${s.id}`,{name:'API Supplier',contactPerson:'QA',email:'test@supplier.example'});
+  assert.ok((await request('GET','/api/categories')).some(x => x.id === c.id));
+  assert.ok((await request('GET','/api/suppliers')).some(x => x.id === s.id));
+  await request('POST','/api/suppliers',{name:'Invalid',email:'bad-email'},400);
+  await request('POST','/api/suppliers',{name:'Invalid',phone:'abc'},400);
+  await request('POST','/api/suppliers',{name:''},400);
+  await request('PUT',`/api/suppliers/${s.id}`,{name:'Invalid',email:'bad-email'},400);
+  const body = {sku:'API-001',name:'API Drill',categoryId:c.id,supplierId:s.id,costPrice:'20.10',sellingPrice:'30.25',quantityInStock:5,reorderLevel:5,unit:'piece'};
+  const p = await request('POST','/api/products',body,201);
+  assert.equal(p.lowStock,true); assert.equal(p.active,true);
+  await request('GET',`/api/products/${p.id}`);
+  await request('POST','/api/products',body,409);
+  await request('POST','/api/categories',{name:'api hardware'},409);
+  await request('POST','/api/products',{...body,sku:'API-BAD',sellingPrice:'-1'},400);
+  await request('POST','/api/products',{...body,sku:'API-BAD',quantityInStock:-1},400);
+  await request('DELETE',`/api/categories/${c.id}`,undefined,409);
+  await request('DELETE',`/api/suppliers/${s.id}`,undefined,409);
+  const update = {...body,name:'API Drill Updated',active:false}; delete update.quantityInStock;
+  const edited = await request('PUT',`/api/products/${p.id}`,update); assert.equal(edited.quantityInStock,5);
+  const found = await request('GET',`/api/products?name=drill&sku=API-&categoryId=${c.id}&supplierId=${s.id}&active=false&lowStock=true`);
+  assert.equal(found.totalElements,1);
+  assert.equal(found.content[0].active,false);
+  assert.equal(found.content[0].categoryId,c.id);
+  assert.equal(found.content[0].supplierId,s.id);
+  const p2 = await request('POST','/api/products',{...body,sku:'API-002'},201);
+  const first = await request('GET',`/api/products?categoryId=${c.id}&page=0&size=1`);
+  const second = await request('GET',`/api/products?categoryId=${c.id}&page=1&size=1`);
+  assert.equal(first.totalElements,2); assert.equal(first.totalPages,2);
+  assert.equal(first.content.length,1); assert.equal(second.content.length,1);
+  assert.notEqual(first.content[0].id,second.content[0].id);
+  await request('GET','/api/products?page=-1',undefined,400);
+  await request('GET','/api/products?size=101',undefined,400);
+  await request('DELETE',`/api/products/${p2.id}`,undefined,204);
+  await request('PATCH',`/api/products/${p.id}/stock`,{adjustment:-6},400);
+  const adjusted = await request('PATCH',`/api/products/${p.id}/stock`,{adjustment:2}); assert.equal(adjusted.quantityInStock,7); assert.equal(adjusted.lowStock,false);
+  // Exercise actual MySQL row locking with simultaneous withdrawals.
+  const outcomes = await Promise.all([1,2].map(()=>fetch(`${base}/api/products/${p.id}/stock`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({adjustment:-5})})));
+  assert.deepEqual(outcomes.map(r=>r.status).sort(),[200,400]);
+  assert.equal((await request('GET',`/api/products/${p.id}`)).quantityInStock,2);
+  await request('DELETE',`/api/products/${p.id}`,undefined,204);
+  await request('DELETE',`/api/categories/${c.id}`,undefined,204);
+  await request('DELETE',`/api/suppliers/${s.id}`,undefined,204);
+  await request('GET',`/api/products/${p.id}`,undefined,404);
+  console.log(`PASS: ${checks} live HTTP/CORS checks plus concurrent MySQL withdrawal check. Only this script's new records were deleted.`);
+})().catch(e=>{console.error(e);process.exitCode=1;});
