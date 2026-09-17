@@ -35,7 +35,7 @@ class InventoryApiTests {
     @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     @BeforeEach void clean() {
-        jdbc.update("delete from inventory_transactions"); jdbc.update("delete from stock_document_lines"); jdbc.update("delete from stock_documents");
+        jdbc.update("delete from sales_order_items"); jdbc.update("delete from sales_orders"); jdbc.update("delete from customers"); jdbc.update("delete from inventory_transactions"); jdbc.update("delete from stock_document_lines"); jdbc.update("delete from stock_documents");
         products.deleteAll(); categories.deleteAll(); suppliers.deleteAll();
     }
 

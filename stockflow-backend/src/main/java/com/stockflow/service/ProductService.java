@@ -18,7 +18,9 @@ public class ProductService {
     private final SupplierRepository suppliers;
     private final InventoryService inventory;
     private final InventoryTransactionRepository transactions;
-    public ProductService(ProductRepository products, CategoryRepository categories, SupplierRepository suppliers, InventoryService inventory, InventoryTransactionRepository transactions) {
+    private final SalesOrderItemRepository orderItems;
+    public ProductService(ProductRepository products, CategoryRepository categories, SupplierRepository suppliers, InventoryService inventory, InventoryTransactionRepository transactions, SalesOrderItemRepository orderItems) {
+        this.orderItems = orderItems;
         this.products = products; this.categories = categories; this.suppliers = suppliers; this.inventory=inventory; this.transactions=transactions;
     }
     public ProductResponse get(Long id) { return DtoMapper.product(products.findById(id).orElseThrow(() -> DomainException.notFound("Product", id))); }
@@ -56,9 +58,8 @@ public class ProductService {
     @Transactional
     public void delete(Long id) {
         Product p=locked(id);
-        if(transactions.existsByProductId(id)) throw DomainException.conflict("RESOURCE_IN_USE", "Product has inventory history; mark it inactive instead");
+        if(transactions.existsByProductId(id) || orderItems.existsByProductId(id)) throw DomainException.conflict("RESOURCE_IN_USE", "Product has inventory history or sales orders; mark it inactive instead");
         products.delete(p); products.flush();
     }
     private Product locked(Long id) { return products.findForUpdate(id).orElseThrow(() -> DomainException.notFound("Product", id)); }
 }
-

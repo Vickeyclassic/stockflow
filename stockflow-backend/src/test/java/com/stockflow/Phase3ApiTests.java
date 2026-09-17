@@ -22,7 +22,7 @@ class Phase3ApiTests {
  @Autowired MockMvc mvc; @Autowired JsonMapper json; @Autowired JdbcTemplate jdbc;
  long category,supplier; int sequence;
  @BeforeEach void setup() throws Exception {
-  for(String table:List.of("inventory_transactions","stock_document_lines","stock_documents","products","categories","suppliers")) jdbc.update("delete from "+table);
+  for(String table:List.of("sales_order_items","sales_orders","customers","inventory_transactions","stock_document_lines","stock_documents","products","categories","suppliers")) jdbc.update("delete from "+table);
   category=postJson("/api/categories",Map.of("name","Phase3"),201).get("id").asLong();
   supplier=postJson("/api/suppliers",Map.of("name","Supplier"),201).get("id").asLong();
  }
