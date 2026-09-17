@@ -14,8 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class SupplierService {
     private final SupplierRepository suppliers;
     private final ProductRepository products;
-    private final StockDocumentRepository documents;
-    public SupplierService(SupplierRepository suppliers, ProductRepository products, StockDocumentRepository documents) { this.suppliers = suppliers; this.products = products; this.documents=documents; }
+    private final StockDocumentRepository documents; private final PurchaseOrderRepository orders;
+    public SupplierService(SupplierRepository suppliers, ProductRepository products, StockDocumentRepository documents, PurchaseOrderRepository orders) { this.orders=orders; this.suppliers = suppliers; this.products = products; this.documents=documents; }
     public List<SupplierResponse> list() { return suppliers.findAll(Sort.by("name").and(Sort.by("id"))).stream().map(DtoMapper::supplier).toList(); }
     public SupplierResponse get(Long id) { return DtoMapper.supplier(require(id)); }
     private Supplier require(Long id) { return suppliers.findById(id).orElseThrow(() -> DomainException.notFound("Supplier", id)); }
@@ -31,7 +31,7 @@ public class SupplierService {
     @Transactional
     public void delete(Long id) {
         Supplier supplier = require(id);
-        if (products.existsBySupplierId(id) || documents.existsBySupplierId(id)) throw DomainException.conflict("RESOURCE_IN_USE", "Supplier is used by products or receipts and cannot be deleted");
+        if (products.existsBySupplierId(id) || documents.existsBySupplierId(id) || orders.existsBySupplierId(id)) throw DomainException.conflict("RESOURCE_IN_USE", "Supplier is used by products, receipts or purchase orders and cannot be deleted");
         suppliers.delete(supplier); suppliers.flush();
     }
 }

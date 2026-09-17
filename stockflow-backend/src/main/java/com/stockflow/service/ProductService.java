@@ -18,9 +18,9 @@ public class ProductService {
     private final SupplierRepository suppliers;
     private final InventoryService inventory;
     private final InventoryTransactionRepository transactions;
-    private final SalesOrderItemRepository orderItems;
-    public ProductService(ProductRepository products, CategoryRepository categories, SupplierRepository suppliers, InventoryService inventory, InventoryTransactionRepository transactions, SalesOrderItemRepository orderItems) {
-        this.orderItems = orderItems;
+    private final SalesOrderItemRepository orderItems; private final PurchaseOrderItemRepository purchaseItems;
+    public ProductService(ProductRepository products, CategoryRepository categories, SupplierRepository suppliers, InventoryService inventory, InventoryTransactionRepository transactions, SalesOrderItemRepository orderItems, PurchaseOrderItemRepository purchaseItems) {
+        this.orderItems = orderItems; this.purchaseItems = purchaseItems;
         this.products = products; this.categories = categories; this.suppliers = suppliers; this.inventory=inventory; this.transactions=transactions;
     }
     public ProductResponse get(Long id) { return DtoMapper.product(products.findById(id).orElseThrow(() -> DomainException.notFound("Product", id))); }
@@ -58,7 +58,7 @@ public class ProductService {
     @Transactional
     public void delete(Long id) {
         Product p=locked(id);
-        if(transactions.existsByProductId(id) || orderItems.existsByProductId(id)) throw DomainException.conflict("RESOURCE_IN_USE", "Product has inventory history or sales orders; mark it inactive instead");
+        if(transactions.existsByProductId(id) || orderItems.existsByProductId(id) || purchaseItems.existsByProductId(id)) throw DomainException.conflict("RESOURCE_IN_USE", "Product has inventory history or orders; mark it inactive instead");
         products.delete(p); products.flush();
     }
     private Product locked(Long id) { return products.findForUpdate(id).orElseThrow(() -> DomainException.notFound("Product", id)); }
