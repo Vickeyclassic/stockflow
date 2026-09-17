@@ -32,7 +32,10 @@ class InventoryApiTests {
     @Autowired SupplierRepository suppliers;
     @Autowired ProductService productService;
 
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     @BeforeEach void clean() {
+        jdbc.update("delete from inventory_transactions"); jdbc.update("delete from stock_document_lines"); jdbc.update("delete from stock_documents");
         products.deleteAll(); categories.deleteAll(); suppliers.deleteAll();
     }
 
@@ -134,8 +137,9 @@ class InventoryApiTests {
         body.put("supplierId", null);
         mvc.perform(put("/api/products/{id}", id).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.supplierId").isEmpty());
-        mvc.perform(delete("/api/products/{id}", id)).andExpect(status().isNoContent());
-        mvc.perform(get("/api/products/{id}", id)).andExpect(status().isNotFound());
+        // Phase 3 intentionally protects the opening-stock history.
+        mvc.perform(delete("/api/products/{id}", id)).andExpect(status().isConflict());
+        mvc.perform(get("/api/products/{id}", id)).andExpect(status().isOk());
     }
 
     @Test void normalUpdateCannotSilentlyChangeStock() throws Exception {
@@ -158,7 +162,7 @@ class InventoryApiTests {
     }
 
     @Test void referencedCategoryAndSupplierCannotBeDeleted() throws Exception {
-        long c = category(), s = supplier(); var body = product(c); body.put("supplierId", s);
+        long c = category(), s = supplier(); var body = product(c); body.put("supplierId", s); body.put("quantityInStock", 0);
         long id = create("/api/products", body).get("id").asLong();
         for (String url : List.of("/api/categories/" + c, "/api/suppliers/" + s)) {
             mvc.perform(delete(url)).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("RESOURCE_IN_USE"));

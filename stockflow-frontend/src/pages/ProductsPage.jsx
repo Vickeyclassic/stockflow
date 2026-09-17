@@ -50,7 +50,7 @@ function StockForm({ item, onSaved, onClose }) {
     catch (e) { setError(e); } finally { setBusy(false); }
   }
   return <Modal title="Adjust stock" onClose={onClose} busy={busy}><p><strong>{item.name}</strong> · Current stock: {item.quantityInStock} {item.unit}</p>
-    <p className="muted">Enter a positive quantity to add stock or a negative quantity to remove it. This phase does not keep adjustment history.</p>
+    <p className="muted">Enter a positive quantity to add stock or a negative quantity to remove it. This adjustment is recorded in inventory history. Use Inventory to add a specific reason.</p>
     <form onSubmit={submit}><ErrorNotice error={error} /><Field label="Adjustment quantity" required type="number" min={-2147483648} max={2147483647} step={1} value={adjustment} onChange={setAdjustment} disabled={busy} />
       <div className="form-actions"><button type="button" disabled={busy} onClick={onClose}>Cancel</button><button className="primary" disabled={busy || adjustment === '' || Number(adjustment) === 0}>{busy ? 'Applying…' : 'Apply adjustment'}</button></div>
     </form>
@@ -96,7 +96,7 @@ export default function ProductsPage() {
       </tr>)}
     </tbody></table></div>
     <div className="pagination"><span>Page {page.totalPages ? pageNumber + 1 : 0} of {page.totalPages}</span><button disabled={loading || pageNumber === 0} onClick={() => setPageNumber(n => n - 1)}>Previous</button><button disabled={loading || pageNumber + 1 >= page.totalPages} onClick={() => setPageNumber(n => n + 1)}>Next</button></div>
-    <p className="muted footnote">Low stock means quantity is at or below the reorder level. Prices use your business currency; multi-currency support is outside this phase.</p>
+    <p className="muted footnote">Products with movement history cannot be deleted; mark them inactive instead. Low stock means quantity is at or below the reorder level. Prices use your business currency; multi-currency support is outside this phase.</p>
     {editing && <ProductForm item={editing} categories={categories} suppliers={suppliers} onClose={() => setEditing(null)} onSaved={() => refresh('Product saved.')} />}
     {adjusting && <StockForm item={adjusting} onClose={() => setAdjusting(null)} onSaved={() => refresh('Stock adjusted.')} />}
     {deleting && <DeleteDialog name={deleting.name} onClose={() => setDeleting(null)} onDelete={async () => { await api.delete(`/api/products/${deleting.id}`); refresh('Product deleted.'); }} />}

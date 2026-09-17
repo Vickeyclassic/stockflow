@@ -16,8 +16,10 @@ public class ProductService {
     private final ProductRepository products;
     private final CategoryRepository categories;
     private final SupplierRepository suppliers;
-    public ProductService(ProductRepository products, CategoryRepository categories, SupplierRepository suppliers) {
-        this.products = products; this.categories = categories; this.suppliers = suppliers;
+    private final InventoryService inventory;
+    private final InventoryTransactionRepository transactions;
+    public ProductService(ProductRepository products, CategoryRepository categories, SupplierRepository suppliers, InventoryService inventory, InventoryTransactionRepository transactions) {
+        this.products = products; this.categories = categories; this.suppliers = suppliers; this.inventory=inventory; this.transactions=transactions;
     }
     public ProductResponse get(Long id) { return DtoMapper.product(products.findById(id).orElseThrow(() -> DomainException.notFound("Product", id))); }
     public PageResponse<ProductResponse> list(String name, String sku, Long categoryId, Long supplierId, Boolean active, Boolean lowStock, int page, int size) {
@@ -28,7 +30,7 @@ public class ProductService {
     public ProductResponse create(ProductCreateRequest r) {
         Product p = new Product();
         apply(p, r.sku(), r.name(), r.description(), r.categoryId(), r.supplierId(), r.costPrice(), r.sellingPrice(), r.reorderLevel(), r.unit(), r.active() == null || r.active());
-        p.setQuantityInStock(r.quantityInStock() == null ? 0 : r.quantityInStock());
+        inventory.initialize(p, r.quantityInStock());
         return DtoMapper.product(products.saveAndFlush(p));
     }
     @Transactional
@@ -49,17 +51,14 @@ public class ProductService {
     }
     @Transactional
     public ProductResponse adjustStock(Long id, StockAdjustmentRequest request) {
-        Product p = locked(id);
-        if (request.adjustment() == 0) throw DomainException.invalidStock("Adjustment must not be zero");
-        long result = (long) p.getQuantityInStock() + request.adjustment();
-        if (result < 0) throw DomainException.invalidStock("Adjustment would make stock negative");
-        if (result > Integer.MAX_VALUE) throw DomainException.invalidStock("Adjustment exceeds the supported stock quantity");
-        p.setQuantityInStock((int) result);
-        // A future inventory transaction record belongs in this same transaction.
-        return DtoMapper.product(products.saveAndFlush(p));
+        return inventory.legacy(id, request);
     }
     @Transactional
-    public void delete(Long id) { products.delete(locked(id)); products.flush(); }
+    public void delete(Long id) {
+        Product p=locked(id);
+        if(transactions.existsByProductId(id)) throw DomainException.conflict("RESOURCE_IN_USE", "Product has inventory history; mark it inactive instead");
+        products.delete(p); products.flush();
+    }
     private Product locked(Long id) { return products.findForUpdate(id).orElseThrow(() -> DomainException.notFound("Product", id)); }
 }
 
