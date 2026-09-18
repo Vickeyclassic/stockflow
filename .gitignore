@@ -32,3 +32,6 @@ secrets/
 .tools/
 work/
 
+
+# Safe source helper; contains no password or hash
+!scripts/HashPassword.java

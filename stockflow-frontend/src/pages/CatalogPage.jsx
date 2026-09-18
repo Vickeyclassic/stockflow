@@ -1,3 +1,4 @@
+import { useAuth } from '../auth';
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { DeleteDialog, ErrorNotice, Field, Modal } from '../components/Forms';
@@ -39,6 +40,7 @@ function CatalogForm({ kind, item, onSaved, onClose }) {
 }
 
 export default function CatalogPage({ kind }) {
+  const { user } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -61,7 +63,7 @@ export default function CatalogPage({ kind }) {
     <div className="section-toolbar"><span>{rows.length} records</span><button onClick={reload} disabled={loading}>Refresh</button></div>
     {message && <p className="notice success" role="status">{message}</p>}<ErrorNotice error={error} />
     <div className="table-wrap"><table><caption className="sr-only">{title}</caption><thead><tr><th>Name</th>{kind === 'categories' ? <th>Description</th> : <><th>{kind === 'customers' ? 'Status' : 'Contact'}</th><th>Email</th><th>Phone</th><th>Address</th></>}<th>Actions</th></tr></thead><tbody>
-      {loading ? <tr><td colSpan={6}>Loading…</td></tr> : error ? <tr><td colSpan={6}>Records could not be loaded. Try Refresh.</td></tr> : rows.length === 0 ? <tr><td colSpan={6}>No {kind} yet. Add your first {singular} to get started.</td></tr> : rows.map(row => <tr key={row.id}><td><strong>{row.name}</strong></td>{kind === 'categories' ? <td>{row.description || '—'}</td> : <><td>{kind === 'customers' ? (row.active ? 'Active' : 'Inactive') : row.contactPerson || '—'}</td><td>{row.email || '—'}</td><td>{row.phone || '—'}</td><td>{row.address || '—'}</td></>}<td><div className="row-actions"><button onClick={() => setEditing(row)} aria-label={`Edit ${row.name}`}>Edit</button><button className="text-danger" onClick={() => setDeleting(row)} aria-label={`Delete ${row.name}`}>Delete</button></div></td></tr>)}
+      {loading ? <tr><td colSpan={6}>Loading…</td></tr> : error ? <tr><td colSpan={6}>Records could not be loaded. Try Refresh.</td></tr> : rows.length === 0 ? <tr><td colSpan={6}>No {kind} yet. Add your first {singular} to get started.</td></tr> : rows.map(row => <tr key={row.id}><td><strong>{row.name}</strong></td>{kind === 'categories' ? <td>{row.description || '—'}</td> : <><td>{kind === 'customers' ? (row.active ? 'Active' : 'Inactive') : row.contactPerson || '—'}</td><td>{row.email || '—'}</td><td>{row.phone || '—'}</td><td>{row.address || '—'}</td></>}<td><div className="row-actions"><button onClick={() => setEditing(row)} aria-label={`Edit ${row.name}`}>Edit</button>{user.role === 'ADMIN' && <button className="text-danger" onClick={() => setDeleting(row)} aria-label={`Delete ${row.name}`}>Delete</button>}</div></td></tr>)}
     </tbody></table></div>
     <p className="muted footnote">Referenced records cannot be deleted. Customers with orders can be marked inactive.</p>
     {editing && <CatalogForm kind={kind} item={editing} onClose={() => setEditing(null)} onSaved={() => { setMessage('Record saved.'); reload(); }} />}

@@ -1,3 +1,4 @@
+import { useAuth } from '../auth';
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { DeleteDialog, ErrorNotice, Field, Modal } from '../components/Forms';
@@ -58,6 +59,7 @@ function StockForm({ item, onSaved, onClose }) {
 }
 
 export default function ProductsPage() {
+  const { user } = useAuth();
   const [page, setPage] = useState({ content: [], page: 0, totalPages: 0, totalElements: 0 });
   const [pageNumber, setPageNumber] = useState(0);
   const [categories, setCategories] = useState([]); const [suppliers, setSuppliers] = useState([]);
@@ -92,7 +94,7 @@ export default function ProductsPage() {
     <div className="table-wrap"><table><caption className="sr-only">Product inventory</caption><thead><tr><th>Product / SKU</th><th>Category</th><th>Supplier</th><th className="number">Selling price</th><th className="number">Stock</th><th className="number">Reorder</th><th>Stock level</th><th>Status</th><th>Actions</th></tr></thead><tbody>
       {loading ? <tr><td colSpan={9}>Loading products…</td></tr> : error ? <tr><td colSpan={9}>Products could not be loaded. Try Refresh.</td></tr> : page.content.length === 0 ? <tr><td colSpan={9}>No products found. Add a product or adjust your filters.</td></tr> : page.content.map(p => <tr key={p.id}>
         <td><strong>{p.name}</strong><small>{p.sku}</small></td><td>{p.categoryName}</td><td>{p.supplierName || 'Unassigned'}</td><td className="number">{money(p.sellingPrice)}</td><td className="number">{p.quantityInStock}<small>{p.unit}</small></td><td className="number">{p.reorderLevel}</td><td><span className={`badge ${p.lowStock ? 'low' : 'good'}`}>{p.lowStock ? 'Low stock' : 'In stock'}</span></td><td><span className={`badge ${p.active ? '' : 'inactive'}`}>{p.active ? 'Active' : 'Inactive'}</span></td>
-        <td><div className="row-actions"><button onClick={() => setEditing(p)} aria-label={`Edit ${p.name}`}>Edit</button><button onClick={() => setAdjusting(p)} aria-label={`Adjust stock for ${p.name}`}>Adjust stock</button><button className="text-danger" onClick={() => setDeleting(p)} aria-label={`Delete ${p.name}`}>Delete</button></div></td>
+        <td><div className="row-actions"><button onClick={() => setEditing(p)} aria-label={`Edit ${p.name}`}>Edit</button><button onClick={() => setAdjusting(p)} aria-label={`Adjust stock for ${p.name}`}>Adjust stock</button>{user.role === 'ADMIN' && <button className="text-danger" onClick={() => setDeleting(p)} aria-label={`Delete ${p.name}`}>Delete</button>}</div></td>
       </tr>)}
     </tbody></table></div>
     <div className="pagination"><span>Page {page.totalPages ? pageNumber + 1 : 0} of {page.totalPages}</span><button disabled={loading || pageNumber === 0} onClick={() => setPageNumber(n => n - 1)}>Previous</button><button disabled={loading || pageNumber + 1 >= page.totalPages} onClick={() => setPageNumber(n => n + 1)}>Next</button></div>

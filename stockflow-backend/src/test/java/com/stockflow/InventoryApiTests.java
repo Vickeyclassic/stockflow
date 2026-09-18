@@ -25,7 +25,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class InventoryApiTests {
-    @Autowired MockMvc mvc;
+    MockMvc mvc;
+ @Autowired void configureAuthenticatedMvc(org.springframework.web.context.WebApplicationContext context) {
+  // Default request authentication also applies to concurrent worker-thread requests.
+  mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup(context)
+   .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity())
+   .defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
+    .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("test-admin").roles("ADMIN")))
+   .build();
+ }
     @Autowired JsonMapper json;
     @Autowired ProductRepository products;
     @Autowired CategoryRepository categories;

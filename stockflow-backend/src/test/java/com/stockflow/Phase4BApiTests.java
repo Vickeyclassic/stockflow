@@ -17,7 +17,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest @AutoConfigureMockMvc @ActiveProfiles("test")
 class Phase4BApiTests {
- @Autowired MockMvc mvc; @Autowired JsonMapper json; @Autowired JdbcTemplate jdbc;
+ MockMvc mvc;
+ @Autowired void configureAuthenticatedMvc(org.springframework.web.context.WebApplicationContext context) {
+  // Default request authentication also applies to concurrent worker-thread requests.
+  mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup(context)
+   .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity())
+   .defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
+    .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("test-admin").roles("ADMIN")))
+   .build();
+ } @Autowired JsonMapper json; @Autowired JdbcTemplate jdbc;
  long category,supplier; int sequence;
  @BeforeEach void setup() throws Exception {
   for(String t:List.of("purchase_order_items","purchase_orders","sales_order_items","sales_orders","customers","inventory_transactions","stock_document_lines","stock_documents","products","categories","suppliers"))jdbc.update("delete from "+t);
