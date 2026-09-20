@@ -77,4 +77,46 @@ class AuthApiTests {
             .andExpect(status().isForbidden());
         assertTrue(users.findByUsername("forbidden").isEmpty());
     }
+    @Test void listActivationAndExistingTokenEnforcement() throws Exception {
+        var admin = login("admin");
+        var staff = login("staff");
+        var id = users.findByUsername("staff").orElseThrow().getId();
+        mvc.perform(get("/api/users").header("Authorization", "Bearer " + admin))
+            .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").exists())
+            .andExpect(jsonPath("$[0].active").value(true))
+            .andExpect(jsonPath("$[*].passwordHash").isEmpty());
+        mvc.perform(get("/api/users").header("Authorization", "Bearer " + staff)).andExpect(status().isForbidden());
+        mvc.perform(patch("/api/users/" + id + "/active").header("Authorization", "Bearer " + staff)
+            .contentType("application/json").content("{\"active\":false}")).andExpect(status().isForbidden());
+        mvc.perform(patch("/api/users/" + id + "/active").header("Authorization", "Bearer " + admin)
+            .contentType("application/json").content("{\"active\":false}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.active").value(false))
+            .andExpect(jsonPath("$.passwordHash").doesNotExist());
+        mvc.perform(get("/api/products").header("Authorization", "Bearer " + staff)).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/auth/login").contentType("application/json")
+            .content(json.writeValueAsString(Map.of("username", "staff", "password", password))))
+            .andExpect(status().isUnauthorized());
+        mvc.perform(patch("/api/users/" + id + "/active").header("Authorization", "Bearer " + admin)
+            .contentType("application/json").content("{\"active\":true}")).andExpect(status().isOk());
+        login("staff");
+    }
+    @Test void managementValidationAndSelfProtection() throws Exception {
+        var token = login("admin");
+        var id = users.findByUsername("admin").orElseThrow().getId();
+        mvc.perform(get("/api/users")).andExpect(status().isUnauthorized());
+        mvc.perform(patch("/api/users/" + id + "/active").header("Authorization", "Bearer " + token)
+            .contentType("application/json").content("{\"active\":false}")).andExpect(status().isConflict());
+        mvc.perform(patch("/api/users/" + id + "/active").header("Authorization", "Bearer " + token)
+            .contentType("application/json").content("{}")).andExpect(status().isBadRequest());
+        mvc.perform(patch("/api/users/999999/active").header("Authorization", "Bearer " + token)
+            .contentType("application/json").content("{\"active\":false}")).andExpect(status().isNotFound());
+        mvc.perform(post("/api/users").header("Authorization", "Bearer " + token).contentType("application/json")
+            .content(json.writeValueAsString(Map.of("username", "STAFF", "password", password, "role", "STAFF"))))
+            .andExpect(status().isConflict());
+        mvc.perform(post("/api/users").header("Authorization", "Bearer " + token).contentType("application/json")
+            .content("{\"username\":\"valid\",\"password\":\"short\",\"role\":\"STAFF\"}"))
+            .andExpect(status().isBadRequest());
+        assertFalse(json.writeValueAsString(users.findByUsername("admin").orElseThrow()).contains("passwordHash"));
+        mvc.perform(get("/api/health/ready")).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("UP"));
+    }
 }

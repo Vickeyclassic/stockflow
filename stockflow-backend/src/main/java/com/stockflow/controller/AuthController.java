@@ -19,9 +19,9 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api")
 public class AuthController {
-    public record Login(@NotBlank @Size(max=100) String username, @NotBlank @Size(max=72) String password) {}
+    public record Login(@NotBlank @Size(max=100) String username, @io.swagger.v3.oas.annotations.media.Schema(accessMode=io.swagger.v3.oas.annotations.media.Schema.AccessMode.WRITE_ONLY, format="password") @NotBlank @Size(max=72) String password) {}
     public record CreateUser(@NotBlank @Pattern(regexp="[A-Za-z0-9._-]{3,100}") String username,
-        @NotBlank @Size(min=12,max=72) String password, @NotNull User.Role role) {}
+        @io.swagger.v3.oas.annotations.media.Schema(accessMode=io.swagger.v3.oas.annotations.media.Schema.AccessMode.WRITE_ONLY, format="password") @NotBlank @Size(min=12,max=72) String password, @NotNull User.Role role) {}
     public record Profile(String username, User.Role role) {}
     public record Session(String token, Instant expiresAt, Profile user) {}
     private final UserRepository users;
@@ -39,7 +39,7 @@ public class AuthController {
         var user=users.findByUsername(request.username().strip().toLowerCase(Locale.ROOT)).orElse(null);
         boolean matches=request.password().getBytes(StandardCharsets.UTF_8).length <= 72
             && passwords.matches(request.password(), user == null ? dummyHash : user.getPasswordHash());
-        if (!matches || user == null) throw new DomainException(HttpStatus.UNAUTHORIZED,"INVALID_CREDENTIALS","Invalid username or password");
+        if (!matches || user == null || !user.isActive()) throw new DomainException(HttpStatus.UNAUTHORIZED,"INVALID_CREDENTIALS","Invalid username or password");
         var now=Instant.now(); var expires=now.plusSeconds(ttl);
         var claims=JwtClaimsSet.builder().issuer("stockflow").subject(user.getUsername()).issuedAt(now)
             .expiresAt(expires).claim("role",user.getRole().name()).build();

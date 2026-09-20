@@ -7,7 +7,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-@Component @Profile("dev")
+@Component @Profile("dev | bootstrap")
 public class DevelopmentAdmin implements CommandLineRunner {
     private final UserRepository users;
     private final String username, hash;

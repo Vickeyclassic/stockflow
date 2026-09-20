@@ -29,10 +29,15 @@ public class SecurityConfig {
         return new SecretKeySpec(bytes, "HmacSHA256");
     }
     @Bean JwtEncoder jwtEncoder(SecretKey key) { return new NimbusJwtEncoder(new ImmutableSecret<>(key)); }
-    @Bean JwtDecoder jwtDecoder(SecretKey key) {
+    @Bean JwtDecoder jwtDecoder(SecretKey key, com.stockflow.repository.UserRepository users) {
         var decoder = NimbusJwtDecoder.withSecretKey(key).build();
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
-            new JwtTimestampValidator(Duration.ZERO), new JwtIssuerValidator("stockflow")));
+            new JwtTimestampValidator(Duration.ZERO), new JwtIssuerValidator("stockflow"),
+            jwt -> users.findByUsername(jwt.getSubject())
+                .filter(user -> user.isActive() && user.getRole().name().equals(jwt.getClaimAsString("role")))
+                .map(user -> org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.success())
+                .orElseGet(() -> org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.failure(
+                    new org.springframework.security.oauth2.core.OAuth2Error("invalid_token", "Account is unavailable or role changed", null)))));
         return decoder;
     }
     @Bean SecurityFilterChain security(HttpSecurity http) throws Exception {
@@ -50,7 +55,8 @@ public class SecurityConfig {
         return http.cors(Customizer.withDefaults()).csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(a -> a
-                .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/health", "/api/health/ready", "/api/version").permitAll()
+                .requestMatchers(HttpMethod.GET, "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                 .requestMatchers("/api/users", "/api/users/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN")
