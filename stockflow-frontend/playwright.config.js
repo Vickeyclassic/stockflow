@@ -19,7 +19,7 @@ export default defineConfig({
   outputDir: './test-results', reporter: [['list'], ['html', { open: 'never' }]],
   use: { baseURL: process.env.E2E_BASE_URL || 'http://127.0.0.1:4173',
     ...devices['Desktop Chrome'], channel: process.env.E2E_BROWSER_CHANNEL || undefined,
-    trace: 'off', screenshot: 'only-on-failure' },
+    actionTimeout: 15_000, trace: 'off', screenshot: 'only-on-failure' },
   projects: [{ name: 'chromium' }],
   webServer: external ? undefined : [
     { name: 'Isolated backend', cwd: path.join(root, 'stockflow-backend'),

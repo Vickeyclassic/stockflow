@@ -21,7 +21,7 @@ public final class E2eApplication {
             "--spring.datasource.driver-class-name=org.h2.Driver", "--spring.datasource.username=sa",
             "--spring.datasource.password=", "--spring.flyway.enabled=true", "--spring.flyway.baseline-on-migrate=false",
             "--spring.flyway.url=" + database, "--spring.flyway.user=sa", "--spring.flyway.password=",
-            "--spring.jpa.hibernate.ddl-auto=validate", "--spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect",
+            "--spring.jpa.hibernate.ddl-auto=validate", "--spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
             "--app.cors.allowed-origins=http://127.0.0.1:4173", "--app.demo.enabled=false",
             "--springdoc.api-docs.enabled=false", "--springdoc.swagger-ui.enabled=false");
     }

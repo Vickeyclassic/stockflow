@@ -370,7 +370,7 @@ Inventory history now exposes the existing reference type and exact reference-ID
 
 ## Playwright E2E smoke test
 
-The smoke test drives the actual UI: ADMIN login → category/supplier/product → purchase order received (stock 0 → 10) → customer → sales order fulfilled (stock 10 → 7) → filtered inventory movement → logout → protected page shows login. It also checks all four CSV downloads, the invoice fields/total, the print action, and print-media visibility. No business/API calls are mocked. Only the native print dialog is replaced during automation so the test can complete unattended.
+The smoke test drives the actual UI: ADMIN login → category/supplier/product → purchase order received (stock 0 → 10) → customer → sales order fulfilled (stock 10 → 7) → filtered inventory movement → logout → protected page shows login. It also checks all four CSV downloads, the invoice fields/total, the print action, and print-media visibility. Each run saves A4 and Letter invoice PDFs plus a 60-row A4 layout fixture under `test-results/`; extra rows exist only in the browser DOM and never change saved order data. No business/API calls are mocked. Only the native print dialog is replaced during automation so the test can complete unattended.
 
 For a local isolated run, install dependencies and a browser:
 
@@ -382,7 +382,7 @@ npm.cmd test
 npm.cmd run test:e2e
 ```
 
-Alternatively, use an already installed Chrome browser by setting `$env:E2E_BROWSER_CHANNEL='chrome'` before the E2E command. Local E2E starts its own test-classpath backend on `127.0.0.1:18080` and Vite on `127.0.0.1:4173`. Both ports must be free; existing servers are never reused. The test-only Java launcher hardcodes a unique in-memory H2 datasource and Flyway connection, applies the unchanged migrations, and creates a temporary ADMIN with a generated password. It cannot run from the production jar. It never resets or connects to your development/production database. The servers stop when Playwright finishes. The Maven wrapper cache/repository for this local runner live under ignored `.tools/` in the repository.
+Alternatively, use an already installed Chrome browser by setting `$env:E2E_BROWSER_CHANNEL='chrome'` before the E2E command. Local E2E starts its own test-classpath backend on `127.0.0.1:18080` and Vite on `127.0.0.1:4173`. Both ports must be free; existing servers are never reused. The test-only Java launcher hardcodes a unique in-memory H2 datasource and Flyway connection, applies the unchanged migrations, and creates a temporary ADMIN with a generated password. It cannot run from the production jar. It never resets or connects to your development/production database. Playwright stops the servers when it finishes. In this restricted Windows agent environment, automatic process-tree termination stalled after the browser test; verification explicitly stopped only its own temporary server processes, after which Playwright returned exit code 0. Local runs need permission to terminate child processes; teardown has not been verified on unrestricted Windows. The Maven wrapper cache/repository for this local runner live under ignored `.tools/` in the repository.
 
 The separate CI `e2e` job uses MySQL plus the production backend and Nginx frontend, with an explicit CI-only bootstrap overlay (`docker-compose.e2e.yml`). It generates masked, random credentials, builds/starts an isolated Compose project, runs the same test with `E2E_BASE_URL`, and removes only that CI project's disposable services/volume. The overlay is not for a normal deployment. Browser reports and failure screenshots are retained for seven days; traces and persisted authentication state are disabled.
 
@@ -392,17 +392,23 @@ To target an already running **disposable** demo environment, explicitly set `E2
 
 V1.3 changes presentation, exports, test infrastructure, and release metadata only. The V1/V2 migrations and existing business endpoints remain unchanged. A database already on V1.2 needs no new migration or baseline operation.
 
-| Check | Release expectation |
+Verification recorded on **2026-09-24**, resuming the saved V1.3 work. Completed targeted tests were retained rather than rerun. No production backend code or migration files changed.
+
+| Check | Measured result / remaining gate |
 | --- | --- |
-| Backend targeted checks | 28 inventory/API documentation tests pass |
-| Backend full suite | 93 tests, zero failures/errors/skips |
-| Frontend focused tests | 7 CSV/filter tests pass |
-| Frontend production build | `npm run build` succeeds |
-| Playwright | 1 smoke scenario passes, including the full purchase-to-sale workflow |
-| GitHub `backend` | Java 21 backend suite passes |
-| GitHub `frontend` | `npm ci`, CSV tests, and Vite production build pass |
-| GitHub `docker` | Both images build; real MySQL fresh/adopted schema and HTTP checks pass |
-| GitHub `e2e` | Separate real MySQL/backend/Nginx browser workflow passes |
+| Backend targeted checks | Previously completed: 28 passed; not rerun |
+| Backend full suite | 93 passed; 0 failures, 0 errors, 0 skipped; Maven BUILD SUCCESS |
+| Frontend focused tests | Previously completed: 7 CSV/filter tests passed; not rerun |
+| Frontend production build | Passed after final print CSS correction; Vite built 86 modules |
+| Playwright | 1 scenario passed in Chrome against fresh H2 (7.7 seconds; 1.1 minutes including startup/cleanup), exit code 0; Windows server cleanup required explicit intervention |
+| Invoice print layout | A4 and Letter: 1 page each; 60-row layout fixture: 5 A4 pages; repeated headers, final total, no clipped text or visible application controls |
+| Migration history | V1/V2 files unchanged from V1.2 (`ae3ab09`); isolated E2E applied both and validated the schema |
+| GitHub `backend` / `frontend` | Configured; hosted results for the final release commit not verified in this session |
+| GitHub `docker` / `e2e` | Configured separately; Docker unavailable locally, so production MySQL/Nginx/container checks remain pending |
+
+Resumed fixes are limited to E2E required-label/dropdown selectors, uppercase order-number fixtures matching existing normalization, a 15-second action timeout, the test-only H2 Hibernate dialect, print QA captures, and a white print-page background. The browser scenario verifies stock 0 -> 10 -> 7, all four CSV exports, reference/type/product/date filters, pagination, invoice total 27.00, logout, and protected-page login. A4/Letter and all five long-table pages were visually reviewed. The long-table PDF is a layout fixture, not a real 60-line sales order or an accounting-total test.
+
+Remaining release gates: run all four GitHub jobs on the final commit, verify Docker/MySQL deployment, capture portfolio screenshots, and tag/publish only after those checks pass. Physical printer output and other browser engines were not tested.
 
 Local H2/browser results do not substitute for the GitHub Docker/MySQL checks. Require all four jobs to be green on the exact commit being tagged; inspect uploaded E2E reports if the browser job fails. After deployment, verify healthy containers, unchanged successful migration versions 1/2, and `/api/version` showing `1.3.0`. Existing databases and ADMIN/STAFF permissions must remain intact.
 
