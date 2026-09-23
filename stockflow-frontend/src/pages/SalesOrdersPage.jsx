@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { ErrorNotice, Field, Modal } from '../components/Forms';
 import { dateTime, loadProducts, Pager, productOptions } from './InventoryPage';
+import CsvExport from '../components/CsvExport';
+import SalesInvoice from '../components/SalesInvoice';
+import { orderColumns } from '../utils/csv';
 
 const statuses = ['DRAFT', 'CONFIRMED', 'FULFILLED', 'CANCELLED'];
 const money = value => Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -54,6 +57,7 @@ export default function SalesOrdersPage() {
   const [page, setPage] = useState(0), [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true), [error, setError] = useState(null), [message, setMessage] = useState('');
   const [editing, setEditing] = useState(null), [detail, setDetail] = useState(null);
+  const [invoice, setInvoice] = useState(null);
   const [busy, setBusy] = useState(false), [statusError, setStatusError] = useState(null);
   useEffect(() => {
     const controller = new AbortController(); setLoading(true); setError(null);
@@ -83,6 +87,7 @@ export default function SalesOrdersPage() {
       <div className="filter-actions"><button className="primary">Apply filters</button><button type="button" onClick={() => { setFilters(emptyFilters); setApplied(emptyFilters); setPage(0); }}>Reset</button><button type="button" disabled={loading} onClick={() => setRevision(r => r + 1)}>Refresh</button></div>
     </form>
     <ErrorNotice error={error} />{message && <p className="notice success" role="status">{message}</p>}
+    <CsvExport endpoint="/api/sales-orders" filters={applied} columns={orderColumns(false)} filename="stockflow-sales-orders.csv" disabled={loading || !!error} />
     <div className="table-wrap"><table><caption className="sr-only">Sales orders</caption><thead><tr><th>Order number</th><th>Customer</th><th>Date</th><th>Status</th><th className="number">Total amount</th><th>Actions</th></tr></thead><tbody>
       {loading ? <tr><td colSpan={6}>Loading…</td></tr> : error ? <tr><td colSpan={6}>Orders could not be loaded.</td></tr> : !data.content.length ? <tr><td colSpan={6}>No orders found.</td></tr> : data.content.map(o => <tr key={o.id}><td><strong>{o.orderNumber}</strong></td><td>{o.customer.name}</td><td>{o.orderDate}</td><td><span className="badge">{o.status}</span></td><td className="number"><strong>{money(o.totalAmount)}</strong></td><td><button onClick={() => view(o.id)}>View</button></td></tr>)}
     </tbody></table></div><Pager page={page} setPage={setPage} data={data} busy={loading} />
@@ -94,10 +99,12 @@ export default function SalesOrdersPage() {
       {detail.status === 'CONFIRMED' && <p>Fulfillment deducts all items from stock and is final.</p>}
       {detail.status === 'FULFILLED' && <p className="muted">Inventory history reference: SALES_ORDER #{detail.id}</p>}
       <div className="form-actions">
+        <button disabled={busy} onClick={() => { setInvoice(detail); setDetail(null); }}>Invoice / print</button>
         {detail.status === 'DRAFT' && <><button disabled={busy} onClick={() => { setEditing(detail); setDetail(null); }}>Edit draft</button><button className="primary" disabled={busy} onClick={() => changeStatus('CONFIRMED')}>Confirm order</button></>}
         {detail.status === 'CONFIRMED' && <button className="primary" disabled={busy} onClick={() => changeStatus('FULFILLED')}>{busy ? 'Fulfilling…' : 'Fulfill order'}</button>}
         {['DRAFT', 'CONFIRMED'].includes(detail.status) && <button disabled={busy} onClick={() => changeStatus('CANCELLED')}>Cancel order</button>}
       </div>
     </Modal>}
+    {invoice && <SalesInvoice order={invoice} onClose={() => { setDetail(invoice); setInvoice(null); }} />}
   </>;
 }

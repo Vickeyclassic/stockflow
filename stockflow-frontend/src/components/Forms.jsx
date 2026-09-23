@@ -8,10 +8,10 @@ export function ErrorNotice({ error }) {
   </div>;
 }
 
-export function Modal({ title, children, onClose, busy = false }) {
+export function Modal({ title, children, onClose, busy = false, className }) {
   const ref = useRef(null);
   useEffect(() => { ref.current.showModal(); }, []);
-  return <dialog ref={ref} aria-labelledby="dialog-title" onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
+  return <dialog ref={ref} className={className} aria-labelledby="dialog-title" onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
     <div className="dialog-heading"><h2 id="dialog-title">{title}</h2><button type="button" className="icon-button" aria-label="Close dialog" onClick={onClose} disabled={busy}>×</button></div>
     {children}
   </dialog>;

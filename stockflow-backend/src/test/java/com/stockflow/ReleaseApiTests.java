@@ -38,7 +38,7 @@ class ReleaseApiTests {
     @Test void releaseInfoIsMinimalAndNormalApisStayProtected() throws Exception {
         var response = mvc.perform(get("/api/version")).andExpect(status().isOk())
             .andExpect(header().string("Cache-Control", "no-store"))
-            .andExpect(jsonPath("$.version").value("1.2.0"))
+            .andExpect(jsonPath("$.version").value("1.3.0"))
             .andExpect(jsonPath("$.service").value("stockflow-backend"))
             .andExpect(jsonPath("$.builtAt").isNotEmpty()).andReturn();
         assertEquals(3, json.readTree(response.getResponse().getContentAsString()).size());

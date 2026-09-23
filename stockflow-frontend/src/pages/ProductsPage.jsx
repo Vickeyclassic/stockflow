@@ -2,6 +2,8 @@ import { useAuth } from '../auth';
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { DeleteDialog, ErrorNotice, Field, Modal } from '../components/Forms';
+import CsvExport from '../components/CsvExport';
+import { productColumns } from '../utils/csv';
 
 const emptyFilters = { name: '', sku: '', categoryId: '', supplierId: '', active: '', lowStock: '' };
 const money = value => new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
@@ -90,6 +92,7 @@ export default function ProductsPage() {
       <div className="filter-actions"><button className="primary" disabled={loading}>Apply filters</button><button type="button" onClick={() => { setFilters(emptyFilters); setApplied(emptyFilters); setPageNumber(0); }}>Reset</button></div>
     </form>
     <div className="section-toolbar"><span>{page.totalElements} products</span><button onClick={() => refresh()} disabled={loading}>Refresh</button></div>
+    <CsvExport endpoint="/api/products" filters={applied} columns={productColumns} filename="stockflow-products.csv" disabled={loading || !!error} />
     {message && <p className="notice success" role="status">{message}</p>}<ErrorNotice error={error} />
     <div className="table-wrap"><table><caption className="sr-only">Product inventory</caption><thead><tr><th>Product / SKU</th><th>Category</th><th>Supplier</th><th className="number">Selling price</th><th className="number">Stock</th><th className="number">Reorder</th><th>Stock level</th><th>Status</th><th>Actions</th></tr></thead><tbody>
       {loading ? <tr><td colSpan={9}>Loading products…</td></tr> : error ? <tr><td colSpan={9}>Products could not be loaded. Try Refresh.</td></tr> : page.content.length === 0 ? <tr><td colSpan={9}>No products found. Add a product or adjust your filters.</td></tr> : page.content.map(p => <tr key={p.id}>
