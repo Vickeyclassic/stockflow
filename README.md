@@ -1,4 +1,4 @@
-# StockFlow V1.2
+# StockFlow V1.3
 
 A Java full stack inventory and order management application for a small business. StockFlow replaces disconnected stock sheets with one catalog, traceable stock movements, purchase and sales workflows, and a dashboard that shows what needs attention.
 
@@ -327,7 +327,7 @@ Use `POST /api/auth/login` with your own credentials, copy the returned token, s
 
 ## CI Docker verification and release checks
 
-The Docker job in `.github/workflows/ci.yml` runs `docker compose build backend frontend`, then `scripts/ci-docker-smoke.sh`. It starts MySQL, the production backend, and Nginx; checks readiness, version `1.2.0`, unauthenticated API rejection, and disabled production docs; and verifies both migrations on a new database. It also creates isolated V1/V1.1 fixture databases, performs explicit baseline adoption, compares preserved business-table checksums and user fields, checks inactive-user preservation, and tests a normal restart. Containers/volumes are disposed of only in this isolated CI job. The script refuses normal local invocation.
+The Docker job in `.github/workflows/ci.yml` runs `docker compose build backend frontend`, then `scripts/ci-docker-smoke.sh`. It starts MySQL, the production backend, and Nginx; checks readiness, version `1.3.0`, unauthenticated API rejection, and disabled production docs; and verifies both migrations on a new database. It also creates isolated V1/V1.1 fixture databases, performs explicit baseline adoption, compares preserved business-table checksums and user fields, checks inactive-user preservation, and tests a normal restart. Containers/volumes are disposed of only in this isolated CI job. The script refuses normal local invocation.
 
 Local targeted verification requires only Java/Maven and Node:
 
@@ -344,9 +344,9 @@ Migration tests use isolated H2 in MySQL mode and preserve rows across every tab
 
 For deployment verification:
 
-1. Require green backend, frontend, and Docker CI jobs for the exact release revision. Back up and apply the migration/adoption steps above.
+1. Require green backend, frontend, Docker, and E2E CI jobs for the exact release revision. Back up and apply the migration/adoption steps above.
 2. Start/recreate the deployment and check `docker compose ps` reports healthy services. Keep `SPRING_PROFILES_ACTIVE=prod`, baseline opt-in false, demo seeding disabled, and docs disabled unless intentionally enabled.
-3. Request `/api/health` (liveness) and `/api/health/ready` (database readiness), then `/api/version`. The version response contains only `service`, `version`, and `builtAt`; Maven generates build metadata during compile/package. Expect `stockflow-backend`, `1.2.0`, and the artifact's build timestamp. An IDE launch without generated metadata explicitly returns `development`/`unknown`. The existing health JSON remains unchanged.
+3. Request `/api/health` (liveness) and `/api/health/ready` (database readiness), then `/api/version`. The version response contains only `service`, `version`, and `builtAt`; Maven generates build metadata during compile/package. Expect `stockflow-backend`, `1.3.0`, and the artifact's build timestamp. An IDE launch without generated metadata explicitly returns `development`/`unknown`. The existing health JSON remains unchanged.
 4. Confirm migration history is successful, existing data/activation states match the backup, and a second restart adds no duplicate migrations. Sign in as ADMIN and STAFF and spot-check their existing permissions.
 5. Verify the configured browser origin works, an unlisted origin is rejected, unauthenticated `/api/products` returns 401, and production docs return 404 when disabled.
 
@@ -359,3 +359,86 @@ For deployment verification:
 - Production SQL formatting/show-SQL and JDBC bind/extract logging are disabled, security logging remains INFO, and error responses omit stack traces and binding details. Do not override logging to DEBUG/TRACE on a production deployment handling credentials.
 
 Implementation references: [Spring Boot Flyway initialization](https://docs.spring.io/spring-boot/how-to/data-initialization.html), [Flyway explicit baseline adoption](https://documentation.red-gate.com/fd/flyway-baseline-on-migrate-setting-277578974.html), and [springdoc OpenAPI](https://springdoc.org/).
+
+## V1.3 printing, exports, and inventory history
+
+Open a sales order, choose **Invoice / print**, review the saved order, and choose **Print invoice**. The browser print dialog can print or save to PDF without a backend PDF service. The view includes a company-details placeholder, order number/date/status, current customer contact details, product/SKU, quantity, saved unit prices/line totals, and saved order total. The print stylesheet hides application navigation and controls, repeats table headers, and allows long orders to flow over multiple pages. Replace the company placeholder before sharing a real document. This is an order summary: taxes, payment status, and statutory invoicing are outside StockFlow's current scope. Customer/product names reflect the current linked records, not an immutable historical billing snapshot.
+
+**Export CSV** is available on Products, Inventory transaction history, Sales orders, and Purchase orders. Apply filters first; the export downloads every matching page, not just the visible rows. Order exports contain one row per order (use the invoice for line-item detail). CSV uses UTF-8 with a BOM, CRLF record separators, quoted/escaped cells, and spreadsheet-formula protection for text fields. Empty results produce headers only. Failed/cancelled exports do not download partial files. Exporting uses the same authenticated APIs and permissions as viewing. Concurrent edits may affect multi-page exports; these are convenient list exports, not transactionally frozen audit snapshots.
+
+Inventory history now exposes the existing reference type and exact reference-ID filters alongside product, movement type, inclusive UTC date range, and pagination. Order references use the numeric ID shown in the received/fulfilled order details; select `PURCHASE_ORDER` or `SALES_ORDER` plus that ID. Choose 10, 20, 50, or 100 rows per page. Changes to filters/page size reset pagination to the first page. Stock calculations and movement APIs are unchanged.
+
+## Playwright E2E smoke test
+
+The smoke test drives the actual UI: ADMIN login → category/supplier/product → purchase order received (stock 0 → 10) → customer → sales order fulfilled (stock 10 → 7) → filtered inventory movement → logout → protected page shows login. It also checks all four CSV downloads, the invoice fields/total, the print action, and print-media visibility. No business/API calls are mocked. Only the native print dialog is replaced during automation so the test can complete unattended.
+
+For a local isolated run, install dependencies and a browser:
+
+```powershell
+Set-Location D:\JavaFullStack\Projects\stockflow\stockflow-frontend
+npm.cmd ci
+npx.cmd playwright install chromium
+npm.cmd test
+npm.cmd run test:e2e
+```
+
+Alternatively, use an already installed Chrome browser by setting `$env:E2E_BROWSER_CHANNEL='chrome'` before the E2E command. Local E2E starts its own test-classpath backend on `127.0.0.1:18080` and Vite on `127.0.0.1:4173`. Both ports must be free; existing servers are never reused. The test-only Java launcher hardcodes a unique in-memory H2 datasource and Flyway connection, applies the unchanged migrations, and creates a temporary ADMIN with a generated password. It cannot run from the production jar. It never resets or connects to your development/production database. The servers stop when Playwright finishes. The Maven wrapper cache/repository for this local runner live under ignored `.tools/` in the repository.
+
+The separate CI `e2e` job uses MySQL plus the production backend and Nginx frontend, with an explicit CI-only bootstrap overlay (`docker-compose.e2e.yml`). It generates masked, random credentials, builds/starts an isolated Compose project, runs the same test with `E2E_BASE_URL`, and removes only that CI project's disposable services/volume. The overlay is not for a normal deployment. Browser reports and failure screenshots are retained for seven days; traces and persisted authentication state are disabled.
+
+To target an already running **disposable** demo environment, explicitly set `E2E_BASE_URL`, `E2E_USERNAME`, `E2E_PASSWORD`, and `E2E_ALLOW_WRITES=true`. This mode creates uniquely named records and leaves them in place; it performs no API cleanup/deletion. Do not point it at a working business database. `E2E_BASE_URL` must identify the frontend, not the backend. Reports are written to ignored `playwright-report/` and `test-results/` directories. See [Playwright web-server setup](https://playwright.dev/docs/test-webserver) and [CI guidance](https://playwright.dev/docs/ci).
+
+## GitHub release readiness — v1.3.0
+
+V1.3 changes presentation, exports, test infrastructure, and release metadata only. The V1/V2 migrations and existing business endpoints remain unchanged. A database already on V1.2 needs no new migration or baseline operation.
+
+| Check | Release expectation |
+| --- | --- |
+| Backend targeted checks | 28 inventory/API documentation tests pass |
+| Backend full suite | 93 tests, zero failures/errors/skips |
+| Frontend focused tests | 7 CSV/filter tests pass |
+| Frontend production build | `npm run build` succeeds |
+| Playwright | 1 smoke scenario passes, including the full purchase-to-sale workflow |
+| GitHub `backend` | Java 21 backend suite passes |
+| GitHub `frontend` | `npm ci`, CSV tests, and Vite production build pass |
+| GitHub `docker` | Both images build; real MySQL fresh/adopted schema and HTTP checks pass |
+| GitHub `e2e` | Separate real MySQL/backend/Nginx browser workflow passes |
+
+Local H2/browser results do not substitute for the GitHub Docker/MySQL checks. Require all four jobs to be green on the exact commit being tagged; inspect uploaded E2E reports if the browser job fails. After deployment, verify healthy containers, unchanged successful migration versions 1/2, and `/api/version` showing `1.3.0`. Existing databases and ADMIN/STAFF permissions must remain intact.
+
+### Suggested portfolio demo
+
+1. Start a separate demo deployment and sign in as ADMIN. Use optional development demo data only in an empty development database, or create a category, supplier, product, and customer manually.
+2. Create a purchase order for 10 units and receive it. Show the increased product stock and the linked `PURCHASE_ORDER` inventory movement.
+3. Create a sales order for 3 units, confirm and fulfill it. Show the reduced stock, the linked `SALES_ORDER` movement, and its previous/new balances.
+4. Open **Invoice / print**, show the customer/items/status/total, and preview printing or saving to PDF.
+5. Apply product/order/history filters and download the matching CSV files. Demonstrate history reference filters and page-size controls.
+6. Show the ADMIN Users page, then sign out. Demonstrate that revisiting a protected page presents the login screen.
+
+### Screenshots checklist
+
+Capture only demo data and omit passwords, tokens, and database credentials:
+
+- [ ] Login screen
+- [ ] Dashboard with demo metrics
+- [ ] Products showing stock after receipt/fulfillment
+- [ ] Received purchase order
+- [ ] Fulfilled sales order
+- [ ] Invoice preview and browser print preview
+- [ ] Filtered inventory history with order reference and pagination
+- [ ] CSV export opened in a spreadsheet
+- [ ] ADMIN Users page
+- [ ] Four green GitHub checks and healthy Docker services
+
+Suggested location: `docs/screenshots/`. Replace earlier placeholders with reviewed images when available; screenshots are a manual release task.
+
+### Release tagging
+
+Review the diff and confirm that V1/V2 migration files are unchanged. Commit the reviewed V1.3 changes through your normal branch/PR process, wait for all four GitHub jobs on the release commit, and capture the screenshots above. Then, from a clean checkout of that verified commit:
+
+```bash
+git tag -a v1.3.0 -m "StockFlow V1.3 portfolio/demo polish"
+git push origin v1.3.0
+```
+
+Create a GitHub release from `v1.3.0` with the feature summary, test results, deployment verification, and demo screenshots. Tagging/publishing is a manual step; these commands are not run automatically. Build/deploy the tagged source, preserve the existing MySQL volume, and never use `down -v` on an installation containing business data.

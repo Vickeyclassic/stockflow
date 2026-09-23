@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { ErrorNotice, Field, Modal } from '../components/Forms';
 import { dateTime, loadProducts, Pager, productOptions } from './InventoryPage';
+import CsvExport from '../components/CsvExport';
+import { orderColumns } from '../utils/csv';
 
 const statuses = ['DRAFT', 'ORDERED', 'RECEIVED', 'CANCELLED'];
 const money = value => Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -83,6 +85,7 @@ export default function PurchaseOrdersPage() {
       <div className="filter-actions"><button className="primary">Apply filters</button><button type="button" onClick={() => { setFilters(emptyFilters); setApplied(emptyFilters); setPage(0); }}>Reset</button><button type="button" disabled={loading} onClick={() => setRevision(r => r + 1)}>Refresh</button></div>
     </form>
     <ErrorNotice error={error} />{message && <p className="notice success" role="status">{message}</p>}
+    <CsvExport endpoint="/api/purchase-orders" filters={applied} columns={orderColumns(true)} filename="stockflow-purchase-orders.csv" disabled={loading || !!error} />
     <div className="table-wrap"><table><caption className="sr-only">Purchase orders</caption><thead><tr><th>Order number</th><th>Supplier</th><th>Date</th><th>Status</th><th className="number">Total amount</th><th>Actions</th></tr></thead><tbody>
       {loading ? <tr><td colSpan={6}>Loading…</td></tr> : error ? <tr><td colSpan={6}>Orders could not be loaded.</td></tr> : !data.content.length ? <tr><td colSpan={6}>No orders found.</td></tr> : data.content.map(o => <tr key={o.id}><td><strong>{o.orderNumber}</strong></td><td>{o.supplier.name}</td><td>{o.orderDate}</td><td><span className="badge">{o.status}</span></td><td className="number"><strong>{money(o.totalAmount)}</strong></td><td><button onClick={() => view(o.id)}>View</button></td></tr>)}
     </tbody></table></div><Pager page={page} setPage={setPage} data={data} busy={loading} />

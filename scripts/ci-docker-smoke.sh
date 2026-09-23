@@ -13,7 +13,7 @@ mysql_root() {
 
 docker compose up -d --wait --wait-timeout 240
 curl --fail --silent http://localhost:8080/api/health/ready | jq -e '.status == "UP"'
-curl --fail --silent http://localhost:8080/api/version | jq -e '.version == "1.2.0" and .service == "stockflow-backend" and .builtAt != "unknown"'
+curl --fail --silent http://localhost:8080/api/version | jq -e '.version == "1.3.0" and .service == "stockflow-backend" and .builtAt != "unknown"'
 [[ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/products)" == 401 ]]
 [[ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/v3/api-docs)" == 404 ]]
 [[ "$(mysql_app stockflow_db -e "SELECT COUNT(*) FROM flyway_schema_history WHERE success=1 AND version IN ('1','2')")" == 2 ]]

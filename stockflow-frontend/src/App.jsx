@@ -32,7 +32,7 @@ function AuthenticatedApp() {
   if (!user) return <LoginPage />;
   return <div className="shell">
     <header><a className="brand" href="#dashboard"><span className="brand-icon" aria-hidden="true">S</span>StockFlow</a><span className="tagline">Inventory &amp; Order Management System</span><button className="connection" onClick={() => setAttempt(n => n + 1)} aria-label="Check backend connection"><span className={`dot ${health === 'Connected' ? 'online' : ''}`} /><span role="status">{health}</span></button><div className="session-user"><strong>{user.username}</strong><span className="badge">{user.role}</span></div><button onClick={() => logout()}>Log out</button></header>
-    <nav aria-label="Main navigation">{(user.role === 'ADMIN' ? [...pages, 'users'] : pages).map(name => <a key={name} href={`#${name}`} aria-current={page === name ? 'page' : undefined}>{pageLabel(name)}</a>)}<span>V1.1</span></nav>
+    <nav aria-label="Main navigation">{(user.role === 'ADMIN' ? [...pages, 'users'] : pages).map(name => <a key={name} href={`#${name}`} aria-current={page === name ? 'page' : undefined}>{pageLabel(name)}</a>)}<span>V1.3</span></nav>
     <main>{page === 'users' ? (user.role === 'ADMIN' ? <UsersPage /> : <DashboardPage />) : page === 'dashboard' ? <DashboardPage /> : page === 'purchase-orders' ? <PurchaseOrdersPage /> : page === 'sales-orders' ? <SalesOrdersPage /> : page === 'products' ? <ProductsPage /> : page === 'inventory' ? <InventoryPage /> : ['purchase-receipts', 'sales-issues'].includes(page) ? <DocumentsPage key={page} purchase={page === 'purchase-receipts'} /> : <CatalogPage key={page} kind={page} />}</main>
     <footer><span>STOCKFLOW</span><span>Clarity in every operation.</span></footer>
   </div>;

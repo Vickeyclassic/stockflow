@@ -1,0 +1,5 @@
+# CI-only overlay. Production Compose keeps bootstrap disabled.
+services:
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: prod,bootstrap
