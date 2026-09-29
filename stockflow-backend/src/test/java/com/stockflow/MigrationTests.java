@@ -35,7 +35,7 @@ class MigrationTests {
                 var values = new ArrayList<String>();
                 try (var rows = statement.executeQuery("SELECT * FROM " + table + " ORDER BY id")) {
                     while (rows.next()) for (int column = 1; column <= rows.getMetaData().getColumnCount(); column++) {
-                        if (table.equals("app_users") && rows.getMetaData().getColumnName(column).equalsIgnoreCase("active")) continue;
+                        if (table.equals("app_users") && (rows.getMetaData().getColumnName(column).equalsIgnoreCase("active") || rows.getMetaData().getColumnName(column).equalsIgnoreCase("credential_version"))) continue;
                         values.add(rows.getMetaData().getColumnName(column) + "=" + rows.getString(column));
                     }
                 }
@@ -52,20 +52,20 @@ class MigrationTests {
     }
     @Test void emptyDatabaseInitializesAndSecondMigrationDoesNothing() throws Exception {
         String url = database(); var flyway = flyway(url, false);
-        assertEquals(2, flyway.migrate().migrationsExecuted);
-        assertEquals("2", flyway.info().current().getVersion().toString());
+        assertEquals(3, flyway.migrate().migrationsExecuted);
+        assertEquals("3", flyway.info().current().getVersion().toString());
         assertEquals(12, snapshot(url).size());
         assertEquals(0, flyway.migrate().migrationsExecuted);
         assertThrows(FlywayException.class, flyway::clean);
     }
     @Test void originalV1UpgradePreservesEveryTableAndActivatesExistingUsers() throws Exception {
         String url = database(); legacy(url, false); var before = snapshot(url);
-        assertEquals(1, flyway(url, true).migrate().migrationsExecuted);
+        assertEquals(2, flyway(url, true).migrate().migrationsExecuted);
         assertEquals(before, snapshot(url)); assertTrue(active(url));
     }
     @Test void v11UpgradePreservesInactiveUsersAndAllData() throws Exception {
         String url = database(); legacy(url, true); var before = snapshot(url);
-        assertEquals(1, flyway(url, true).migrate().migrationsExecuted);
+        assertEquals(2, flyway(url, true).migrate().migrationsExecuted);
         assertEquals(before, snapshot(url)); assertFalse(active(url));
         assertEquals(0, flyway(url, false).migrate().migrationsExecuted);
         assertFalse(active(url));

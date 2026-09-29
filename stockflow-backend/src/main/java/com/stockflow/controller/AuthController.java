@@ -23,6 +23,11 @@ public class AuthController {
     public record CreateUser(@NotBlank @Pattern(regexp="[A-Za-z0-9._-]{3,100}") String username,
         @io.swagger.v3.oas.annotations.media.Schema(accessMode=io.swagger.v3.oas.annotations.media.Schema.AccessMode.WRITE_ONLY, format="password") @NotBlank @Size(min=12,max=72) String password, @NotNull User.Role role) {}
     public record Profile(String username, User.Role role) {}
+    public record ChangePassword(
+        @io.swagger.v3.oas.annotations.media.Schema(accessMode=io.swagger.v3.oas.annotations.media.Schema.AccessMode.WRITE_ONLY, format="password")
+        @NotBlank @Size(max=72) String currentPassword,
+        @io.swagger.v3.oas.annotations.media.Schema(accessMode=io.swagger.v3.oas.annotations.media.Schema.AccessMode.WRITE_ONLY, format="password")
+        @NotBlank @Size(min=12,max=72) String newPassword) {}
     public record Session(String token, Instant expiresAt, Profile user) {}
     private final UserRepository users;
     private final PasswordEncoder passwords;
@@ -42,12 +47,32 @@ public class AuthController {
         if (!matches || user == null || !user.isActive()) throw new DomainException(HttpStatus.UNAUTHORIZED,"INVALID_CREDENTIALS","Invalid username or password");
         var now=Instant.now(); var expires=now.plusSeconds(ttl);
         var claims=JwtClaimsSet.builder().issuer("stockflow").subject(user.getUsername()).issuedAt(now)
-            .expiresAt(expires).claim("role",user.getRole().name()).build();
+            .expiresAt(expires).claim("role",user.getRole().name())
+            .claim("credentialVersion",user.getCredentialVersion()).build();
         var token=encoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(),claims)).getTokenValue();
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(new Session(token,expires,new Profile(user.getUsername(),user.getRole())));
     }
     @GetMapping("/auth/me") public Profile me(@AuthenticationPrincipal Jwt jwt) {
         return new Profile(jwt.getSubject(), User.Role.valueOf(jwt.getClaimAsString("role")));
+    }
+    @PostMapping("/auth/change-password")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<Void> changePassword(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ChangePassword request) {
+        var user = users.lockByUsername(jwt.getSubject()).orElseThrow(() ->
+            new DomainException(HttpStatus.UNAUTHORIZED,"UNAUTHORIZED","Please sign in again."));
+        Number version = jwt.getClaim("credentialVersion");
+        if (!user.isActive() || user.getCredentialVersion() != (version == null ? 0 : version.longValue()))
+            throw new DomainException(HttpStatus.UNAUTHORIZED,"UNAUTHORIZED","Please sign in again.");
+        if (request.currentPassword().getBytes(StandardCharsets.UTF_8).length > 72
+            || !passwords.matches(request.currentPassword(), user.getPasswordHash()))
+            throw new DomainException(HttpStatus.BAD_REQUEST,"INCORRECT_PASSWORD","Current password is incorrect.");
+        if (request.newPassword().getBytes(StandardCharsets.UTF_8).length > 72)
+            throw new DomainException(HttpStatus.BAD_REQUEST,"INVALID_PASSWORD","New password must not exceed 72 UTF-8 bytes.");
+        if (passwords.matches(request.newPassword(), user.getPasswordHash()))
+            throw new DomainException(HttpStatus.BAD_REQUEST,"INVALID_PASSWORD","Choose a different new password.");
+        user.changePassword(passwords.encode(request.newPassword()));
+        users.saveAndFlush(user);
+        return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
     }
     @PostMapping("/users") public ResponseEntity<Profile> create(@Valid @RequestBody CreateUser request) {
         if (request.password().getBytes(StandardCharsets.UTF_8).length > 72)

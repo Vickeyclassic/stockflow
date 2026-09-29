@@ -34,7 +34,8 @@ public class SecurityConfig {
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
             new JwtTimestampValidator(Duration.ZERO), new JwtIssuerValidator("stockflow"),
             jwt -> users.findByUsername(jwt.getSubject())
-                .filter(user -> user.isActive() && user.getRole().name().equals(jwt.getClaimAsString("role")))
+                .filter(user -> user.isActive() && user.getRole().name().equals(jwt.getClaimAsString("role"))
+                    && user.getCredentialVersion() == (jwt.getClaim("credentialVersion") == null ? 0 : ((Number) jwt.getClaim("credentialVersion")).longValue()))
                 .map(user -> org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.success())
                 .orElseGet(() -> org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.failure(
                     new org.springframework.security.oauth2.core.OAuth2Error("invalid_token", "Account is unavailable or role changed", null)))));

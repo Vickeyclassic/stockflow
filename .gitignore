@@ -37,3 +37,6 @@ work/
 
 # Safe source helper; contains no password or hash
 !scripts/HashPassword.java
+
+# Versioned schema source, not a credential
+!stockflow-backend/src/main/resources/db/migration/V3__password_change.sql

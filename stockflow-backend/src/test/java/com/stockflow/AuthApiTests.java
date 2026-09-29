@@ -47,6 +47,36 @@ class AuthApiTests {
             .content("{\"username\":\"admin\",\"password\":\"wrong\"}"))
             .andExpect(status().isUnauthorized());
     }
+    @Test void passwordChangeWorksForBothRolesAndRevokesOldSessions() throws Exception {
+        for (String name : new String[]{"admin", "staff"}) {
+            var token = login(name);
+            var changed = "new-test-password-123";
+            mvc.perform(post("/api/auth/change-password").header("Authorization", "Bearer " + token)
+                .contentType("application/json").content(json.writeValueAsString(Map.of("currentPassword", password, "newPassword", changed))))
+                .andExpect(status().isNoContent()).andExpect(content().string(""));
+            assertTrue(passwords.matches(changed, users.findByUsername(name).orElseThrow().getPasswordHash()));
+            mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token)).andExpect(status().isUnauthorized());
+            mvc.perform(post("/api/auth/login").contentType("application/json")
+                .content(json.writeValueAsString(Map.of("username", name, "password", password)))).andExpect(status().isUnauthorized());
+            mvc.perform(post("/api/auth/login").contentType("application/json")
+                .content(json.writeValueAsString(Map.of("username", name, "password", changed)))).andExpect(status().isOk());
+        }
+    }
+    @Test void passwordChangeRejectsMissingSessionWrongCurrentAndInvalidNewPassword() throws Exception {
+        mvc.perform(post("/api/auth/change-password").contentType("application/json")
+            .content(json.writeValueAsString(Map.of("currentPassword", password, "newPassword", "valid-new-password"))))
+            .andExpect(status().isUnauthorized());
+        var token = login("admin");
+        for (var request : java.util.List.of(
+            Map.of("currentPassword", "wrong", "newPassword", "valid-new-password"),
+            Map.of("currentPassword", password, "newPassword", "short"),
+            Map.of("currentPassword", password, "newPassword", password),
+            Map.of("currentPassword", password, "newPassword", "é".repeat(40)))) {
+            mvc.perform(post("/api/auth/change-password").header("Authorization", "Bearer " + token)
+                .contentType("application/json").content(json.writeValueAsString(request))).andExpect(status().isBadRequest());
+        }
+        assertTrue(passwords.matches(password, users.findByUsername("admin").orElseThrow().getPasswordHash()));
+    }
     @Test void protectedEndpointRejectsMissingTamperedAndExpiredTokens() throws Exception {
         mvc.perform(get("/api/products")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/products").header("Authorization","Bearer invalid.token.value")).andExpect(status().isUnauthorized());

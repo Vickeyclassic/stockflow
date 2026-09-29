@@ -14,6 +14,14 @@ public class User extends AuditedEntity {
     private Role role;
     @Column(nullable = false, columnDefinition = "boolean default true")
     private boolean active = true;
+    @Column(nullable = false)
+    private long credentialVersion = 0;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public long getCredentialVersion() { return credentialVersion; }
+    public void changePassword(String encodedPassword) {
+        passwordHash = encodedPassword;
+        credentialVersion++;
+    }
     protected User() {}
     public User(String username, String passwordHash, Role role) {
         this.username = username; this.passwordHash = passwordHash; this.role = role;
