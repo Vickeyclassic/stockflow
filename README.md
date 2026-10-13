@@ -2,6 +2,18 @@
 
 A Java full stack inventory and order management application for a small business. StockFlow replaces disconnected stock sheets with one catalog, traceable stock movements, purchase and sales workflows, and a dashboard that shows what needs attention.
 
+## Try the demo
+
+Run `node scripts/demo.mjs` from this repository with Docker Desktop and Node.js 22+. Open http://localhost:5185 and use the generated local credentials. See [Demo guide](docs/DEMO.md).
+
+## Screenshots
+
+![Application dashboard](docs/screenshots/dashboard.png)
+
+[View screenshot gallery](docs/screenshots/README.md). All records shown are synthetic demo data.
+
+See [Design walkthrough](docs/DESIGN.md) for the key implementation decisions and tradeoffs.
+
 ## Features
 
 - **Authentication:** username/password login, BCrypt hashes, signed expiring JWTs, ADMIN and STAFF roles, protected APIs and frontend pages, current user display, and logout.

@@ -1,0 +1,34 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: stockflow_demo
+      MYSQL_USER: stockflow
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Run node scripts/demo.mjs}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Run node scripts/demo.mjs}
+    volumes: [demo-mysql:/var/lib/mysql]
+    healthcheck:
+      test: [CMD-SHELL, 'MYSQL_PWD="$$MYSQL_PASSWORD" mysql -u stockflow -D stockflow_demo -e "SELECT 1" >/dev/null 2>&1']
+      interval: 5s
+      retries: 30
+  backend:
+    build: ./stockflow-backend
+    env_file: .demo/env
+    environment:
+      SPRING_PROFILES_ACTIVE: prod,bootstrap
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: stockflow_demo
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/stockflow_demo
+      DB_USERNAME: stockflow
+      CORS_ALLOWED_ORIGINS: http://localhost:5185,http://127.0.0.1:5185
+    ports: ['127.0.0.1:18085:8080']
+    depends_on:
+      mysql: {condition: service_healthy}
+  frontend:
+    build: ./stockflow-frontend
+    ports: ['127.0.0.1:5185:80']
+    depends_on:
+      backend: {condition: service_healthy}
+volumes:
+  demo-mysql: {}

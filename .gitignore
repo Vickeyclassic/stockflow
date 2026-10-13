@@ -46,3 +46,6 @@ work/
 
 # Generated machine-specific Maven classpath
 stockflow-backend/cp.txt
+
+# Isolated local demo credentials
+.demo/

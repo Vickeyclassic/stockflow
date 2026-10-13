@@ -6,7 +6,7 @@ const money = value => Number(value).toLocaleString(undefined, { minimumFraction
 export default function SalesInvoice({ order, onClose }) {
   return createPortal(<Modal title="Invoice preview" className="invoice-dialog" onClose={onClose}>
     <article className="sales-invoice" aria-label="Sales order invoice">
-      <div className="invoice-heading"><div><h2>Your company name</h2><p>Company address · Phone · Email</p><small>Company details placeholder</small></div><div><h1>Sales order invoice</h1><p><strong>{order.orderNumber}</strong></p></div></div>
+      <div className="invoice-heading"><div><h2>StockFlow</h2><p>Inventory &amp; order management</p></div><div><h1>Sales order invoice</h1><p><strong>{order.orderNumber}</strong></p></div></div>
       <div className="invoice-parties"><section><h3>Customer</h3><strong>{order.customer.name}</strong><p className="preserve-lines">{order.customer.address || 'Address not provided'}</p><p>{order.customer.email || 'Email not provided'}<br />{order.customer.phone || 'Phone not provided'}</p></section>
         <section><h3>Order details</h3><p>Date: {order.orderDate}</p><p>Status: <strong>{order.status}</strong></p><p>Order ID: {order.id}</p></section></div>
       <table><caption className="sr-only">Invoice line items</caption><thead><tr><th>Product / SKU</th><th className="number">Quantity</th><th className="number">Unit price</th><th className="number">Line total</th></tr></thead>
