@@ -16,7 +16,7 @@ curl --fail --silent http://localhost:8080/api/health/ready | jq -e '.status == 
 curl --fail --silent http://localhost:8080/api/version | jq -e '.version == "1.3.0" and .service == "stockflow-backend" and .builtAt != "unknown"'
 [[ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/products)" == 401 ]]
 [[ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/v3/api-docs)" == 404 ]]
-[[ "$(mysql_app stockflow_db -e "SELECT COUNT(*) FROM flyway_schema_history WHERE success=1 AND version IN ('1','2')")" == 2 ]]
+[[ "$(mysql_app stockflow_db -e "SELECT COUNT(*) FROM flyway_schema_history WHERE success=1 AND version IN ('1','2','3')")" == 3 ]]
 
 # Exercise both supported adoption paths against real MySQL, using only CI databases.
 for release in v1 v11; do
@@ -53,5 +53,5 @@ done
 # A regular restart must leave migration history intact.
 docker compose restart backend
 docker compose up -d --wait --wait-timeout 180
-[[ "$(mysql_app stockflow_db -e 'SELECT COUNT(*) FROM flyway_schema_history WHERE success=1')" == 2 ]]
+[[ "$(mysql_app stockflow_db -e 'SELECT COUNT(*) FROM flyway_schema_history WHERE success=1')" == 3 ]]
 echo 'Docker smoke passed: fresh schema, V1/V1.1 adoption, preserved data, readiness, version, and API protection.'
