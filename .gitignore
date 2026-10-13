@@ -40,3 +40,9 @@ work/
 
 # Versioned schema source, not a credential
 !stockflow-backend/src/main/resources/db/migration/V3__password_change.sql
+
+# Application source, not stored credentials
+!stockflow-frontend/src/pages/ChangePasswordPage.jsx
+
+# Generated machine-specific Maven classpath
+stockflow-backend/cp.txt
